@@ -15,6 +15,6 @@ app.use(router);
 
 // sequelizer.sync();
 
-app.listen(PORT_NUMBER, () => {
+app.listen(PORT_NUMBER, '0.0.0.0', () => {
   console.log(`server started at port ${PORT_NUMBER}`);
 })
