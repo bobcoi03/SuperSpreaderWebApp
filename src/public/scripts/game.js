@@ -13,8 +13,10 @@ function initCircle(app, circleRadius=15, startingPositionX=50, startingPosition
 }
 
 function initScreenDisplay(width=640, height=480) {
-	if (window.innerWidth < 640) {
+	if (window.innerWidth < width) {
 		width = window.innerWidth;
+	} else if (window.innerHeight < height) {
+		height = window.innerHeight;
 	}
 	let screenDisplay = new PIXI.Graphics();
 	screenDisplay.beginFill(0x000000);
@@ -27,8 +29,10 @@ function initScreenDisplay(width=640, height=480) {
 }
 
 function initApp(width=640, height=480) {
-	if (window.innerWidth < 640) {
+	if (window.innerWidth < width) {
 		width = window.innerWidth;
+	} else if (window.innerHeight < height) {
+		height = window.innerHeight;
 	}
 	let app = new PIXI.Application({ width: width, height: height, backgroundColor: 0xFFFFFF, antialias: true });
 	app.stage.interactive = true;
@@ -53,7 +57,7 @@ function randomIntFromInterval(min, max) {
 }
 
 class Enemy {
-	constructor(app, screenDisplayWidth, screenDisplayHeight, radius=20, speed=5,) {
+	constructor(app, screenDisplayWidth, screenDisplayHeight, radius=20, speed=5) {
 		this.radius = radius;
 		this.startingPositionX;
 		this.startingPositionY;
@@ -136,7 +140,29 @@ class Enemy {
 	}
 	*/
 }
-
+class Player {
+	constructor(app, screenDisplayWidth, screenDisplayHeight, radius=20, speed=5) {
+		this.radius = radius;
+		this.startingPositionX;
+		this.startingPositionY;
+		this.speed = speed;
+		this.app = app;
+		this.circle;
+		this.color = 0x031cfc;
+		this.screenDisplayWidth = screenDisplayWidth;
+		this.screenDisplayHeight = screenDisplayHeight;
+	}
+	init() {
+		this.circle = initCircle(app, 15);
+	}
+	move() {
+		this.circle.x += this.speed * Math.cos(this.circle.rotation);
+		this.circle.y += this.speed * Math.sin(this.circle.rotation);
+	}
+	setDirection(pointerX, pointerY) {
+		this.circle.rotation = findAngleRadians(this.circle.x, this.circle.y, pointerX, pointerY);
+	}
+}
 // create new instances of Enemy && Enemy.init() 
 function createEnemies(length, app, screenDisplayWidth, screenDisplayHeight) {
 	let enemies = new Array(length);
@@ -146,11 +172,10 @@ function createEnemies(length, app, screenDisplayWidth, screenDisplayHeight) {
 	}
 	return enemies;
 }
-
 function main() {
 	let ticker = PIXI.Ticker;
 	let app = initApp();
-	let player = initCircle(app, 17);
+	let player = initCircle(app, 15);
 	let screenDisplay = initScreenDisplay(app.width);
 	let enemies = createEnemies(10, app, screenDisplay.width, screenDisplay.height);
 	// Adds Sprites & Graphics to app
@@ -193,7 +218,11 @@ function main() {
 	// enemy move func
 	app.ticker.add(() => {
 		for (var i=0; i < enemies.length; ++i) {
-			enemies[i].move();
+			if (enemies[i].dead == true) {
+				app.stage.removeChild(enemies[i].circle);
+			} else {
+				enemies[i].move();
+			}
 		}
 	});
 }
