@@ -1,4 +1,4 @@
-function initCircle(app, circleRadius=15, startingPositionX=50, startingPositionY=50, color=0xFFFF00) {
+function initCircle(app, circleRadius=15, startingPositionX=50, startingPositionY=50, color=0xFFFF00, zIndex=0) {
 	let circle = new PIXI.Graphics();
 	circle.beginFill(color);
 	circle.drawCircle(startingPositionX, startingPositionY, circleRadius);
@@ -9,6 +9,7 @@ function initCircle(app, circleRadius=15, startingPositionX=50, startingPosition
 	circle.y = startingPositionY;
 	circle.anchor.set(0.5, 0.5);
 	circle.radius = circleRadius;
+	circle.zIndex = zIndex;
 	return circle;
 }
 
@@ -73,6 +74,7 @@ class Enemy {
 	init() {
 		this.setStartingPosition();
 		this.circle = initCircle(this.app, this.radius, this.startingPositionX, this.startingPositionY, this.color);
+		console.log(`Enemy: ${this.circle.zIndex}`);
 		this.setDirection(this.sideSpawn);
 	}
 	move() {
@@ -141,7 +143,7 @@ class Enemy {
 	*/
 }
 class Player {
-	constructor(app, screenDisplayWidth, screenDisplayHeight, radius=20, speed=5) {
+	constructor(app, screenDisplayWidth, screenDisplayHeight, radius=15, speed=5) {
 		this.radius = radius;
 		this.startingPositionX;
 		this.startingPositionY;
@@ -151,80 +153,106 @@ class Player {
 		this.color = 0x031cfc;
 		this.screenDisplayWidth = screenDisplayWidth;
 		this.screenDisplayHeight = screenDisplayHeight;
+		this.insideEnemy = false; // if Player is inside an enemy set to true
 	}
 	init() {
-		this.circle = initCircle(app, 15);
+		this.circle = initCircle(this.app, this.radius, );
+		this.circle.zIndex = 2;
+		console.log(this.circle.zIndex);
 	}
 	move() {
-		this.circle.x += this.speed * Math.cos(this.circle.rotation);
-		this.circle.y += this.speed * Math.sin(this.circle.rotation);
+		// Handles movement for player || out of bounds || move towards move position
+		if (this.insideEnemy == true) {
+			this.speed = 0;
+		}
+		if (this.circle.x < 0 + this.circle.radius) {
+			this.circle.x = 0 + this.circle.radius;
+		} else if (this.circle.x > this.screenDisplayWidth - this.circle.radius) {
+			this.circle.x = this.screenDisplayWidth - this.circle.radius;
+		} else if (this.circle.y < 0 + this.circle.radius) {
+			this.circle.y = 0 + this.circle.radius;
+		} else if (this.circle.y > this.screenDisplayHeight - this.circle.radius) {
+			this.circle.y = this.screenDisplayHeight - this.circle.radius;
+		} else {
+			this.circle.x += this.speed * Math.cos(this.circle.rotation);
+			this.circle.y += this.speed * Math.sin(this.circle.rotation);
+		}
 	}
+	// Set rotation based on the angle between circle.x, circle.y and pointer.x, pointer.y
 	setDirection(pointerX, pointerY) {
 		this.circle.rotation = findAngleRadians(this.circle.x, this.circle.y, pointerX, pointerY);
 	}
 }
 // create new instances of Enemy && Enemy.init() 
-function createEnemies(length, app, screenDisplayWidth, screenDisplayHeight) {
+function createEnemies(length, app, screenDisplayWidth, screenDisplayHeight, radius, speed) {
 	let enemies = new Array(length);
 	for (var i = 0; i < length; ++i) {
-		enemies[i] = new Enemy(app, screenDisplayWidth, screenDisplayHeight);
+		enemies[i] = new Enemy(app, screenDisplayWidth, screenDisplayHeight, radius, speed);
 		enemies[i].init();
 	}
 	return enemies;
 }
+function collisionDetection(a, b) {
+	// detects when two Sprites collide with each other using a rectangular hitbox
+	let ab = a.getBounds();
+	let bb = b.getBounds();
+	return ab.x + ab.width > bb.x && ab.x < bb.x + bb.width && ab.y + ab.height > bb.y && ab.y < bb.y + bb.height;
+}
 function main() {
+	// Declare some stuff
 	let ticker = PIXI.Ticker;
 	let app = initApp();
-	let player = initCircle(app, 15);
 	let screenDisplay = initScreenDisplay(app.width);
-	let enemies = createEnemies(10, app, screenDisplay.width, screenDisplay.height);
+	let player = new Player(app, screenDisplay.width, screenDisplay.height, 16, 6);
+	player.init();
+	let enemies = createEnemies(2, app, screenDisplay.width, screenDisplay.height, 20, 1);
 	// Adds Sprites & Graphics to app
-	app.stage.addChild(screenDisplay)
-	app.stage.addChild(player);
+	app.stage.addChild(screenDisplay);
 	for (var i=0; i < enemies.length; ++i) {
 		app.stage.addChild(enemies[i].circle);
 	}
+	app.stage.addChild(player.circle);
 	/* 	Get location of pointer on pointerdown
 	 	event and calculates angle between player
 	  	position and pointer position in radians
 	*/
 	screenDisplay.on('pointerdown', (event) => {
-		player.rotation = findAngleRadians(player.x, player.y, event.data.global.x, event.data.global.y);
+		player.setDirection(event.data.global.x, event.data.global.y);
+		player.insideEnemy = false;
 	});
-	// Handles movement for player || out of bounds || move towards move position
-	function move() {
-		if (player.x < 0 + player.radius) {
-			player.x = 0 + player.radius;
-		} else if (player.x > screenDisplay.width - player.radius) {
-			player.x = screenDisplay.width - player.radius;
-		} else if (player.y < 0 + player.radius) {
-			player.y = 0 + player.radius;
-		} else if (player.y > screenDisplay.height - player.radius) {
-			player.y = screenDisplay.height - player.radius;
-		} else {
-			player.x += 8 * Math.cos(player.rotation);
-			player.y += 8 * Math.sin(player.rotation);
-		}
-		displayInfo(player, app, screenDisplay);
-	}
 	// Reload page on every resize of window
 	window.addEventListener('resize', (event) => {
 		screenDisplay.width = window.innerWidth;
 		app.width = window.innerWidth;
 		location.reload();
 	}, true);
-	// player move func
-	app.ticker.add(move);
-	// enemy move func
-	app.ticker.add(() => {
+
+	function gameLoop() {
+		// handles move function for enemies
 		for (var i=0; i < enemies.length; ++i) {
 			if (enemies[i].dead == true) {
 				app.stage.removeChild(enemies[i].circle);
 			} else {
 				enemies[i].move();
 			}
+			if (collisionDetection(player.circle, enemies[i].circle)) {
+				console.log("collision detected");
+				player.circle.x = enemies[i].circle.x;
+				player.circle.y = enemies[i].circle.y;
+				player.circle.rotation = enemies[i].circle.rotation;
+				player.speed = enemies[i].speed;
+				player.insideEnemy = true;
+			} else {
+				player.insideEnemy = false;
+			}
 		}
-	});
+		// handles move func
+
+		player.move();
+
+		// detect collision
+	}
+	app.ticker.add(gameLoop);
 }
 
 main();
