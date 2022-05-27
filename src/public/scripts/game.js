@@ -175,14 +175,15 @@ class Player {
 		this.screenDisplayWidth = screenDisplayWidth;
 		this.screenDisplayHeight = screenDisplayHeight;
 		this.insideEnemy = false; // if Player is inside an enemy set to true
-		this.mouseClickAndInsideEnemy=false; // whilst player inside enemy and mouse is clicked, set to true 
-		this.mouseClickAndInsideEnemyTime;
+		this.mouseClickAndInsideEnemy=false; // whilst player inside enemy and mouse is clicked, set to true when outside of enemy, set to false
+		this.mouseClickAndInsideEnemyTime; // When mouse is clicked and when player is inside enemy start a timer with performance.now()
 	}
 	init() {
 		this.circle = initCircle(this.app, this.radius, );
 		this.circle.zIndex = 2;
 		console.log(this.circle.zIndex);
 	}
+	// list of enemy objects to detect collision
 	move(enemies) {
 		// Handles movement for player || out of bounds || move towards move position
 		/*
@@ -207,7 +208,7 @@ class Player {
 				console.log("collision detected");
 			} else if (this.mouseClickAndInsideEnemy && this.insideEnemy) {
 				this.speed = this.initialSpeed;
-				if (!collisionDetection(this.circle, enemies[i].circle) && performance.now() - this.mouseClickAndInsideEnemyTime > 160) {
+				if (!collisionDetection(this.circle, enemies[i].circle) && performance.now() - this.mouseClickAndInsideEnemyTime > 180) {
 						console.log("this.mouseClickAndInsideEnemy set to false");
 						this.mouseClickAndInsideEnemy = false;
 						this.insideEnemy = false;
@@ -224,6 +225,43 @@ class Player {
 	}
 }
 
+class ManageEnemies {
+	constructor(spawnAmountEachTime, app, screenDisplayWidth, screenDisplayHeight, radius, speed) {
+		// set first wave of Enemy spawn // Array of Enemies objects.
+		this.spawnAmountEachTime = spawnAmountEachTime;
+		this.app = app;
+		this.screenDisplayWidth = screenDisplayWidth;
+		this.screenDisplayHeight = screenDisplayHeight;
+		this.radius = radius;
+		this.speed = speed;	
+		this._enemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, this.speed);
+		this.spawnTimer = performance.now(); // When createEnemies() is ran create a spawnTimer
+		this.spawnInterval = randomIntFromInterval(2000, 5000); // spawn interval between 2000 milliseconds & 5000 milliseconds
+	}
+	addEnemies() {
+		// This should be put in the gameloop funct
+		// When now() - spawnTimer > 2 to 5 seconds, add enemies to list of _enemies
+		// Reset spawnInterval & spawnTimer
+		if (performance.now() - this.spawnTimer > this.spawnInterval) {
+			createEnemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, this.speed);
+			for (var i = 0; i < createEnemies.length; ++i) {
+				this._enemies.push(createEnemies[i]);
+			}
+			this.spawnInterval = randomIntFromInterval(2000, 5000); // reset spawn interval timer
+			this.spawnTimer = performance.now();
+			return createEnemies; // return a list of enemy objects to add to app.stage
+		}
+	}
+	removeEnemies(index) {
+		this._enemies.splice(index, 1);
+	}
+	get enemies() {
+		return _enemies;
+	}
+
+	// Create and return a list of enemy objects
+}
+
 function main() {
 	// Declare some stuff
 	let ticker = PIXI.Ticker;
@@ -231,7 +269,7 @@ function main() {
 	let screenDisplay = initScreenDisplay(app.width);
 	let player = new Player(app, screenDisplay.width, screenDisplay.height, 16, 6);
 	player.init();
-	let enemies = createEnemies(2, app, screenDisplay.width, screenDisplay.height, 20, 1);
+	let enemies = createEnemies(4, app, screenDisplay.width, screenDisplay.height, 20, 1);
 	// Adds Sprites & Graphics to app
 	app.stage.addChild(screenDisplay);
 	for (var i=0; i < enemies.length; ++i) {
@@ -260,12 +298,16 @@ function main() {
 		location.reload();
 	}, true);
 
+	enemiesRemoved = 0;
 	function gameLoop() {
 		// handles move function for enemies
 		for (var i=0; i < enemies.length; ++i) {
 			// delete enemy when out of screen
 			if (enemies[i].dead == true) {
 				app.stage.removeChild(enemies[i].circle);
+				enemies.splice(i, 1);
+				++enemiesRemoved;
+				console.log(`enemies spliced completed: ${enemiesRemoved}|enemies[]: ${enemies}`);
 			} else {
 				enemies[i].move();
 			}
