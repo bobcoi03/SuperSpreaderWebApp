@@ -57,6 +57,26 @@ function randomIntFromInterval(min, max) {
 	return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
+// create new instances of Enemy && Enemy.init() 
+function createEnemies(length, app, screenDisplayWidth, screenDisplayHeight, radius, speed) {
+	let enemies = new Array(length);
+	for (var i = 0; i < length; ++i) {
+		enemies[i] = new Enemy(app, screenDisplayWidth, screenDisplayHeight, radius, speed);
+		enemies[i].init();
+	}
+	return enemies;
+}
+function collisionDetection(a, b) {
+	// detects when two Sprites collide with each other using a rectangular hitbox
+	let ab = a.getBounds();
+	let bb = b.getBounds();
+	return ab.x + ab.width > bb.x && ab.x < bb.x + bb.width && ab.y + ab.height > bb.y && ab.y < bb.y + bb.height;
+}
+
+function displayStats(player) {
+	document.getElementById('info').innerHTML = `player.mouseClickAndInsideEnemy: ${player.mouseClickAndInsideEnemy}`;
+}
+
 class Enemy {
 	constructor(app, screenDisplayWidth, screenDisplayHeight, radius=20, speed=5) {
 		this.radius = radius;
@@ -148,23 +168,24 @@ class Player {
 		this.startingPositionX;
 		this.startingPositionY;
 		this.speed = speed;
+		this.initialSpeed = speed;
 		this.app = app;
 		this.circle;
 		this.color = 0x031cfc;
 		this.screenDisplayWidth = screenDisplayWidth;
 		this.screenDisplayHeight = screenDisplayHeight;
 		this.insideEnemy = false; // if Player is inside an enemy set to true
+		this.mouseClickAndInsideEnemy=false; // whilst player inside enemy and mouse is clicked, set to true 
+		this.mouseClickAndInsideEnemyTime;
 	}
 	init() {
 		this.circle = initCircle(this.app, this.radius, );
 		this.circle.zIndex = 2;
 		console.log(this.circle.zIndex);
 	}
-	move() {
+	move(enemies) {
 		// Handles movement for player || out of bounds || move towards move position
-		if (this.insideEnemy == true) {
-			this.speed = 0;
-		}
+		/*
 		if (this.circle.x < 0 + this.circle.radius) {
 			this.circle.x = 0 + this.circle.radius;
 		} else if (this.circle.x > this.screenDisplayWidth - this.circle.radius) {
@@ -173,31 +194,36 @@ class Player {
 			this.circle.y = 0 + this.circle.radius;
 		} else if (this.circle.y > this.screenDisplayHeight - this.circle.radius) {
 			this.circle.y = this.screenDisplayHeight - this.circle.radius;
-		} else {
-			this.circle.x += this.speed * Math.cos(this.circle.rotation);
-			this.circle.y += this.speed * Math.sin(this.circle.rotation);
 		}
+		*/
+		// Check for collision
+		for (var i = 0; i < enemies.length; i++) {
+			if (collisionDetection(this.circle, enemies[i].circle) && !this.insideEnemy) {
+				this.insideEnemy = true;
+				this.circle.x = enemies[i].circle.x;
+				this.circle.y = enemies[i].circle.y;
+				this.speed = enemies[i].speed;
+				this.circle.rotation = enemies[i].circle.rotation;
+				console.log("collision detected");
+			} else if (this.mouseClickAndInsideEnemy && this.insideEnemy) {
+				this.speed = this.initialSpeed;
+				if (!collisionDetection(this.circle, enemies[i].circle) && performance.now() - this.mouseClickAndInsideEnemyTime > 160) {
+						console.log("this.mouseClickAndInsideEnemy set to false");
+						this.mouseClickAndInsideEnemy = false;
+						this.insideEnemy = false;
+						this.mouseClickAndInsideEnemyTime = null;
+				}
+			}
+		}
+		this.circle.x += this.speed * Math.cos(this.circle.rotation);
+		this.circle.y += this.speed * Math.sin(this.circle.rotation);
 	}
 	// Set rotation based on the angle between circle.x, circle.y and pointer.x, pointer.y
 	setDirection(pointerX, pointerY) {
 		this.circle.rotation = findAngleRadians(this.circle.x, this.circle.y, pointerX, pointerY);
 	}
 }
-// create new instances of Enemy && Enemy.init() 
-function createEnemies(length, app, screenDisplayWidth, screenDisplayHeight, radius, speed) {
-	let enemies = new Array(length);
-	for (var i = 0; i < length; ++i) {
-		enemies[i] = new Enemy(app, screenDisplayWidth, screenDisplayHeight, radius, speed);
-		enemies[i].init();
-	}
-	return enemies;
-}
-function collisionDetection(a, b) {
-	// detects when two Sprites collide with each other using a rectangular hitbox
-	let ab = a.getBounds();
-	let bb = b.getBounds();
-	return ab.x + ab.width > bb.x && ab.x < bb.x + bb.width && ab.y + ab.height > bb.y && ab.y < bb.y + bb.height;
-}
+
 function main() {
 	// Declare some stuff
 	let ticker = PIXI.Ticker;
@@ -216,9 +242,16 @@ function main() {
 	 	event and calculates angle between player
 	  	position and pointer position in radians
 	*/
+
 	screenDisplay.on('pointerdown', (event) => {
+		for (var i=0; i < enemies.length; ++i) {
+			if (collisionDetection(player.circle, enemies[i].circle)) {
+				console.log("pointer down when inside enemy");
+				player.mouseClickAndInsideEnemy = true;
+				player.mouseClickAndInsideEnemyTime = performance.now();
+			}
+		}
 		player.setDirection(event.data.global.x, event.data.global.y);
-		player.insideEnemy = false;
 	});
 	// Reload page on every resize of window
 	window.addEventListener('resize', (event) => {
@@ -230,29 +263,29 @@ function main() {
 	function gameLoop() {
 		// handles move function for enemies
 		for (var i=0; i < enemies.length; ++i) {
+			// delete enemy when out of screen
 			if (enemies[i].dead == true) {
 				app.stage.removeChild(enemies[i].circle);
 			} else {
 				enemies[i].move();
 			}
-			if (collisionDetection(player.circle, enemies[i].circle)) {
-				console.log("collision detected");
-				player.circle.x = enemies[i].circle.x;
-				player.circle.y = enemies[i].circle.y;
-				player.circle.rotation = enemies[i].circle.rotation;
-				player.speed = enemies[i].speed;
-				player.insideEnemy = true;
-			} else {
-				player.insideEnemy = false;
-			}
 		}
 		// handles move func
-
-		player.move();
-
-		// detect collision
+		displayStats(player);
+		player.move(enemies);
 	}
 	app.ticker.add(gameLoop);
 }
+
+/*
+	There are three states of player
+
+	1) Moving freely in black space
+
+	2) Inside Enemy without mouse clicked
+
+
+	3) Inside Enemy and mouse clicked
+*/
 
 main();
