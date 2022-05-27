@@ -94,7 +94,6 @@ class Enemy {
 	init() {
 		this.setStartingPosition();
 		this.circle = initCircle(this.app, this.radius, this.startingPositionX, this.startingPositionY, this.color);
-		console.log(`Enemy: ${this.circle.zIndex}`);
 		this.setDirection(this.sideSpawn);
 	}
 	move() {
@@ -149,19 +148,8 @@ class Enemy {
 			return false;
 		}
 	}
-	/*
-	deleteObject() {
-		delete this.color;
-		delete this.screenDisplayWidth;
-		delete this.screenDisplayHeight;
-		delete this.sideSpawn;
-		delete this.radius;
-		delete this.startingPositionX;
-		delete this.startingPositionY;
-		delete this.circle;
-	}
-	*/
 }
+
 class Player {
 	constructor(app, screenDisplayWidth, screenDisplayHeight, radius=15, speed=5) {
 		this.radius = radius;
@@ -181,7 +169,6 @@ class Player {
 	init() {
 		this.circle = initCircle(this.app, this.radius, );
 		this.circle.zIndex = 2;
-		console.log(this.circle.zIndex);
 	}
 	// list of enemy objects to detect collision
 	move(enemies) {
@@ -205,11 +192,9 @@ class Player {
 				this.circle.y = enemies[i].circle.y;
 				this.speed = enemies[i].speed;
 				this.circle.rotation = enemies[i].circle.rotation;
-				console.log("collision detected");
 			} else if (this.mouseClickAndInsideEnemy && this.insideEnemy) {
 				this.speed = this.initialSpeed;
 				if (!collisionDetection(this.circle, enemies[i].circle) && performance.now() - this.mouseClickAndInsideEnemyTime > 180) {
-						console.log("this.mouseClickAndInsideEnemy set to false");
 						this.mouseClickAndInsideEnemy = false;
 						this.insideEnemy = false;
 						this.mouseClickAndInsideEnemyTime = null;
@@ -243,22 +228,24 @@ class ManageEnemies {
 		// When now() - spawnTimer > 2 to 5 seconds, add enemies to list of _enemies
 		// Reset spawnInterval & spawnTimer
 		if (performance.now() - this.spawnTimer > this.spawnInterval) {
-			createEnemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, this.speed);
-			for (var i = 0; i < createEnemies.length; ++i) {
-				this._enemies.push(createEnemies[i]);
+			this._newEnemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, this.speed);
+			for (var i = 0; i < this._newEnemies.length; ++i) {
+				this._enemies.push(this._newEnemies[i]);
 			}
 			this.spawnInterval = randomIntFromInterval(2000, 5000); // reset spawn interval timer
 			this.spawnTimer = performance.now();
-			return createEnemies; // return a list of enemy objects to add to app.stage
+			return this._newEnemies; // return a list of enemy objects to add to app.stage
 		}
 	}
 	removeEnemies(index) {
 		this._enemies.splice(index, 1);
 	}
 	get enemies() {
-		return _enemies;
+		return this._enemies;
 	}
-
+	get newEnemies() {
+		return this._newEnemies;
+	}
 	// Create and return a list of enemy objects
 }
 
@@ -269,12 +256,19 @@ function main() {
 	let screenDisplay = initScreenDisplay(app.width);
 	let player = new Player(app, screenDisplay.width, screenDisplay.height, 16, 6);
 	player.init();
-	let enemies = createEnemies(4, app, screenDisplay.width, screenDisplay.height, 20, 1);
-	// Adds Sprites & Graphics to app
+
+	manageEnemies = new ManageEnemies(4, app, screenDisplay.width, screenDisplay.height, 20, 1);
+	enemiesList = manageEnemies.enemies;
+	
+	// Adds Sprites & Graphics to app stage
 	app.stage.addChild(screenDisplay);
-	for (var i=0; i < enemies.length; ++i) {
-		app.stage.addChild(enemies[i].circle);
+
+	// Add initial enemy list to app stage
+	for (var i=0; i < enemiesList.length; ++i) {
+		app.stage.addChild(enemiesList[i].circle);
 	}
+
+	// Add player sprite
 	app.stage.addChild(player.circle);
 	/* 	Get location of pointer on pointerdown
 	 	event and calculates angle between player
@@ -282,9 +276,8 @@ function main() {
 	*/
 
 	screenDisplay.on('pointerdown', (event) => {
-		for (var i=0; i < enemies.length; ++i) {
-			if (collisionDetection(player.circle, enemies[i].circle)) {
-				console.log("pointer down when inside enemy");
+		for (var i=0; i < enemiesList.length; ++i) {
+			if (collisionDetection(player.circle, enemiesList[i].circle)) {
 				player.mouseClickAndInsideEnemy = true;
 				player.mouseClickAndInsideEnemyTime = performance.now();
 			}
@@ -301,20 +294,28 @@ function main() {
 	enemiesRemoved = 0;
 	function gameLoop() {
 		// handles move function for enemies
-		for (var i=0; i < enemies.length; ++i) {
+		for (var i=0; i < enemiesList.length; ++i) {
 			// delete enemy when out of screen
-			if (enemies[i].dead == true) {
-				app.stage.removeChild(enemies[i].circle);
-				enemies.splice(i, 1);
+			if (enemiesList[i].dead == true) {
+				app.stage.removeChild(enemiesList[i].circle);
+				enemiesList.splice(i, 1);
 				++enemiesRemoved;
-				console.log(`enemies spliced completed: ${enemiesRemoved}|enemies[]: ${enemies}`);
 			} else {
-				enemies[i].move();
+				enemiesList[i].move();
 			}
 		}
 		// handles move func
 		displayStats(player);
-		player.move(enemies);
+		// Add new enemies to stage & enemiesList
+		if (manageEnemies.addEnemies() != undefined) {
+			console.log("Spawn function is called");
+			manageEnemies.addEnemies();
+			for (var i = 0; i < manageEnemies.newEnemies.length; ++i) {
+				app.stage.addChild(manageEnemies.newEnemies[i].circle);
+				app.stage.setChildIndex(manageEnemies.newEnemies[i].circle, 1);
+			}
+		}
+		player.move(enemiesList);
 	}
 	app.ticker.add(gameLoop);
 }
