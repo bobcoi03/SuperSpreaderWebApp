@@ -5,12 +5,38 @@
 	<meta charset="UTF-8"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<script type="text/javascript" src="../pixi.js"></script>
+	<link rel="stylesheet" type="text/css" href="../stylesheets/tailWindOutput.css">
 </head>
 <body>
-	<div id="info">
+	<div class="">
+		<nav class="flex items-center justify-between flex-wrap p-2 bg-teal-400">
+			<div class="flex items-center flex-shrink-0 text-white mr-6">
+				<span class="font-semibold text-sm tracking-tight">SuperSpreader
+				</span>
+			</div>
+			<div id="github-logo">
+				<svg xmlns="https://raw.githubusercontent.com/Rush/Font-Awesome-SVG-PNG/master/white/svg/github.svg" width="25" height="25">
+					
+				</svg>
+			</div>
+			<div>
+				<button id="menuButton" onclick="toggleMenu();">
+					<svg class=""viewBox="0 0 100 70" width="30" height="30">
+						<rect style="fill:rgb(255,255,255);"width="90" height="20"></rect>
+						<rect style="fill:rgb(255,255,255);"y="30" width="90" height="20"></rect>
+						<rect style="fill:rgb(255,255,255);"y="60" width="90" height="20"></rect>
+					</svg>
+				</button>
+			</div>
+		</nav>
+	</div>
+	<div id="info" class="text-center font-semibold text-sm tracking-tight">
 		
 	</div>
 	<div id="gameDisplay" style="display: flex;justify-content: center"></div>
+	<div id="scoreboard">
+		
+	</div>
 	<script type="text/javascript" src="../scripts/game.js"></script>
 </body>
 </html>

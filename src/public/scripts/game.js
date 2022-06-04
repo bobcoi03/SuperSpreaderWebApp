@@ -73,8 +73,8 @@ function collisionDetection(a, b) {
 	return ab.x + ab.width > bb.x && ab.x < bb.x + bb.width && ab.y + ab.height > bb.y && ab.y < bb.y + bb.height;
 }
 
-function displayStats(player, ) {
-	document.getElementById('info').innerHTML = `player.mouseClickAndInsideEnemy: ${player.mouseClickAndInsideEnemy}|player.score: ${player.score}`;
+function displayStats(player) {
+	document.getElementById('info').innerHTML = `Score: ${player.score} | Highest Score:`;
 }
 
 class Enemy {
@@ -153,10 +153,8 @@ class Enemy {
 	changeColor(color) {
 		if (!this.changedColor) {
 			this.color = color;
-			console.log(this.color);
 			this.circle = initCircle(this.app, this.radius, this.startingPositionX, this.startingPositionY, this.color, 2);
 			this.changedColor = true;
-			console.log("enemy.changedColor() is ran");
 		}
 	}
 }
@@ -179,48 +177,55 @@ class Player {
 		this.score = 0;
 		this.allowFirstClick=true; // first click can happen anytime
 		this.infectedEnemies = []; // array contains id of enemies that have been infected
+		this.dead = false;
+		this.covidSprite;
 	}
 	init() {
 		this.circle = initCircle(this.app, this.radius);
 	}
+	initSpriteImg() {
+		this.covidSprite = PIXI.Sprite.from('../images/covid-sprite.png');
+		this.covidSprite.x = this.circle.x;
+		this.covidSprite.y = this.circle.y;
+		this.covidSprite.anchor.set(0.5, 0.5);
+		// covidSprite is 225x225 pixel image
+		this.covidSprite.scale.x = 0.25;
+		this.covidSprite.scale.y = 0.25;
+
+		return this.covidSprite;
+	}
 	// list of enemy objects to detect collision
 	move(enemies) {
 		// Handles movement for player || out of bounds || move towards move position
-		/*
-		if (this.circle.x < 0 + this.circle.radius) {
-			this.circle.x = 0 + this.circle.radius;
-		} else if (this.circle.x > this.screenDisplayWidth - this.circle.radius) {
-			this.circle.x = this.screenDisplayWidth - this.circle.radius;
-		} else if (this.circle.y < 0 + this.circle.radius) {
-			this.circle.y = 0 + this.circle.radius;
-		} else if (this.circle.y > this.screenDisplayHeight - this.circle.radius) {
-			this.circle.y = this.screenDisplayHeight - this.circle.radius;
+		if (this.circle.x < 0 + this.circle.radius || this.circle.x > this.screenDisplayWidth - this.circle.radius || this.circle.y < 0 + this.circle.radius || this.circle.y > this.screenDisplayHeight - this.circle.radius) {
+			this.dead = true;
 		}
-		*/
 		// Check for collision
-		for (var i = 0; i < enemies.length; i++) {
-			if (collisionDetection(this.circle, enemies[i].circle) && !this.insideEnemy) {
-				this.insideEnemy = true;
-				this.circle.x = enemies[i].circle.x;
-				this.circle.y = enemies[i].circle.y;
-				this.speed = enemies[i].speed;
-				this.circle.rotation = enemies[i].circle.rotation;
+		if (!this.dead) {
+			for (var i = 0; i < enemies.length; i++) {
+				if (collisionDetection(this.circle, enemies[i].circle) && !this.insideEnemy) {
+					this.insideEnemy = true;
+					this.circle.x = enemies[i].circle.x;
+					this.circle.y = enemies[i].circle.y;
+					this.speed = enemies[i].speed;
+					this.circle.rotation = enemies[i].circle.rotation;
 
-				// Add enemy to infectedEnemies list by using ID
-				if (!this.infectedEnemies.includes(enemies[i].id)) {
-					this.infectedEnemies.push(enemies[i].id);
-				}
-			} else if (this.mouseClickAndInsideEnemy && this.insideEnemy) {
-				this.speed = this.initialSpeed;
-				if (!collisionDetection(this.circle, enemies[i].circle) && performance.now() - this.mouseClickAndInsideEnemyTime > 180) {
-						this.mouseClickAndInsideEnemy = false;
-						this.insideEnemy = false;
-						this.mouseClickAndInsideEnemyTime = null;
+					// Add enemy to infectedEnemies list by using ID
+					if (!this.infectedEnemies.includes(enemies[i].id)) {
+						this.infectedEnemies.push(enemies[i].id);
+					}
+				} else if (this.mouseClickAndInsideEnemy && this.insideEnemy) {
+					this.speed = this.initialSpeed;
+					if (!collisionDetection(this.circle, enemies[i].circle) && performance.now() - this.mouseClickAndInsideEnemyTime > 180) {
+							this.mouseClickAndInsideEnemy = false;
+							this.insideEnemy = false;
+							this.mouseClickAndInsideEnemyTime = null;
+					}
 				}
 			}
+			this.circle.x += this.speed * Math.cos(this.circle.rotation);
+			this.circle.y += this.speed * Math.sin(this.circle.rotation);
 		}
-		this.circle.x += this.speed * Math.cos(this.circle.rotation);
-		this.circle.y += this.speed * Math.sin(this.circle.rotation);
 	}
 	// Set rotation based on the angle between circle.x, circle.y and pointer.x, pointer.y
 	setDirection(pointerX, pointerY) {
@@ -233,8 +238,8 @@ class Player {
 	}
 }
 class ManageEnemies {
-	constructor(spawnAmountEachTime, app, screenDisplayWidth, screenDisplayHeight, radius, speed) {
-		this.spawnAmountEachTime = spawnAmountEachTime;
+	constructor(app, screenDisplayWidth, screenDisplayHeight, radius, speed) {
+		this.spawnAmountEachTime = 5
 		this.app = app;
 		this.screenDisplayWidth = screenDisplayWidth;
 		this.screenDisplayHeight = screenDisplayHeight;
@@ -243,7 +248,9 @@ class ManageEnemies {
 		// set first wave of Enemy spawn // Array of Enemies objects. // Also list of all on screen enemies	
 		this._enemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, this.speed);
 		this.spawnTimer = performance.now(); // When createEnemies() is ran create a spawnTimer
-		this.spawnInterval = randomIntFromInterval(500, 2000); // spawn interval between 2000 milliseconds & 5000 milliseconds
+		this.firstInterval = 500;
+		this.secondInterval = 2000;
+		this.spawnInterval = randomIntFromInterval(this.firstInterval, this.secondInterval); // spawn interval between 2000 milliseconds & 5000 milliseconds
 	}
 	addEnemies() {
 		// This should be put in the gameloop funct
@@ -254,9 +261,10 @@ class ManageEnemies {
 			for (var i = 0; i < this._newEnemies.length; ++i) {
 				this._enemies.push(this._newEnemies[i]);
 			}
-			console.log(this.spawnInterval);
-			this.spawnInterval = randomIntFromInterval(500, 2000); // reset spawn interval timer
+			console.log(this.spawnAmountEachTime);
+			this.spawnInterval = randomIntFromInterval(this.firstInterval, this.secondInterval); // reset spawn interval timer
 			this.spawnTimer = performance.now();
+			this.spawnAmountEachTime = randomIntFromInterval(3,5);
 			return this._newEnemies; // return a list of enemy objects to add to app.stage
 		}
 	}
@@ -286,13 +294,13 @@ function main() {
 	let ticker = PIXI.Ticker;
 	
 	let app = initApp();
-
+	
 	let screenDisplay = initScreenDisplay(app.width);
 
 	let player = new Player(app, screenDisplay.width, screenDisplay.height, 16, 6);
 	player.init();
 
-	manageEnemies = new ManageEnemies(4, app, screenDisplay.width, screenDisplay.height, 20, 4);
+	manageEnemies = new ManageEnemies(app, screenDisplay.width, screenDisplay.height, 20, 4);
 	enemiesList = manageEnemies.enemies;
 	
 	// Adds Sprites & Graphics to app stage
@@ -302,13 +310,7 @@ function main() {
 		app.stage.addChild(enemiesList[i].circle);
 	}
 
-	let covidSprite = PIXI.Sprite.from('../images/covid-sprite.png');
-	covidSprite.x = player.circle.x;
-	covidSprite.y = player.circle.y;
-	covidSprite.anchor.set(0.5, 0.5);
-	// covidSprite is 225x225 pixel image
-	covidSprite.scale.x = 0.25;
-	covidSprite.scale.y = 0.25;
+	let covidSprite = player.initSpriteImg();
 	app.stage.addChild(covidSprite);
 	app.stage.setChildIndex(covidSprite, 5);
 
@@ -362,7 +364,6 @@ function main() {
 
 		// Add new enemies to stage & enemiesList
 		if (manageEnemies.addEnemies() != undefined) {
-			console.log("Spawn function is called");
 			manageEnemies.addEnemies();
 			for (var i = 0; i < manageEnemies.newEnemies.length; ++i) {
 				app.stage.addChild(manageEnemies.newEnemies[i].circle);
@@ -373,26 +374,13 @@ function main() {
 		player.move(enemiesList);
 		player.setScore();
 
-		//rotate covid sprite
+		//rotate covid sprite && set spriteImg position to circle pos
 		covidSprite.x = player.circle.x;
 		covidSprite.y = player.circle.y;
-		covidSprite.rotation += 0.05;
-
+		covidSprite.rotation += 0.08;
 		// change color of infected enemies given array of infected enemies id.
 	//	manageEnemies.recordInfected(player.infectedEnemies);
 	}
 	app.ticker.add(gameLoop);
 }
-
-/*
-	There are three states of player
-
-	1) Moving freely in black space
-
-	2) Inside Enemy without mouse clicked
-
-
-	3) Inside Enemy and mouse clicked
-*/
-
 main();
