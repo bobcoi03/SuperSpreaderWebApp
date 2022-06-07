@@ -6,6 +6,13 @@ const path = require('path');
 const body_parser = require('body-parser');
 // const sequelizer = require('./src/utils/database.js');
 
+const session = require('express-session');
+app.use(session({
+	secret: 'super fucking secret',
+	resave: true,
+	saveUninitialized: true,
+}));
+
 app.use(body_parser.urlencoded({ extended: false }));
 app.use(body_parser.json());
 

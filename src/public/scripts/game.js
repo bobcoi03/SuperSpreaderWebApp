@@ -74,7 +74,7 @@ function collisionDetection(a, b) {
 }
 
 function displayStats(player) {
-	document.getElementById('info').innerHTML = `Score: ${player.score} | Highest Score:`;
+	document.getElementById('info').innerHTML = `Score: ${player.score} | Highest Score: ${player.highScore}`;
 }
 
 class Enemy {
@@ -179,6 +179,7 @@ class Player {
 		this.infectedEnemies = []; // array contains id of enemies that have been infected
 		this.dead = false;
 		this.covidSprite;
+		this.highScore = getHighScore();
 	}
 	init() {
 		this.circle = initCircle(this.app, this.radius);
@@ -213,6 +214,8 @@ class Player {
 					// Add enemy to infectedEnemies list by using ID
 					if (!this.infectedEnemies.includes(enemies[i].id)) {
 						this.infectedEnemies.push(enemies[i].id);
+						postHighScore(this.score + 1);
+						this.highScore = getHighScore();
 					}
 				} else if (this.mouseClickAndInsideEnemy && this.insideEnemy) {
 					this.speed = this.initialSpeed;
@@ -238,13 +241,13 @@ class Player {
 	}
 }
 class ManageEnemies {
-	constructor(app, screenDisplayWidth, screenDisplayHeight, radius, speed) {
+	constructor(app, screenDisplayWidth, screenDisplayHeight, radius) {
 		this.spawnAmountEachTime = 5
 		this.app = app;
 		this.screenDisplayWidth = screenDisplayWidth;
 		this.screenDisplayHeight = screenDisplayHeight;
 		this.radius = radius;
-		this.speed = speed;
+		this.speed = randomIntFromInterval(3,5);
 		// set first wave of Enemy spawn // Array of Enemies objects. // Also list of all on screen enemies	
 		this._enemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, this.speed);
 		this.spawnTimer = performance.now(); // When createEnemies() is ran create a spawnTimer
@@ -257,11 +260,10 @@ class ManageEnemies {
 		// When now() - spawnTimer > 2 to 5 seconds, add enemies to list of _enemies
 		// Reset spawnInterval & spawnTimer
 		if (performance.now() - this.spawnTimer > this.spawnInterval) {
-			this._newEnemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, this.speed);
+			this._newEnemies = createEnemies(this.spawnAmountEachTime, this.app, this.screenDisplayWidth, this.screenDisplayHeight, this.radius, randomIntFromInterval(3,5));
 			for (var i = 0; i < this._newEnemies.length; ++i) {
 				this._enemies.push(this._newEnemies[i]);
 			}
-			console.log(this.spawnAmountEachTime);
 			this.spawnInterval = randomIntFromInterval(this.firstInterval, this.secondInterval); // reset spawn interval timer
 			this.spawnTimer = performance.now();
 			this.spawnAmountEachTime = randomIntFromInterval(3,5);
@@ -300,7 +302,7 @@ function main() {
 	let player = new Player(app, screenDisplay.width, screenDisplay.height, 16, 6);
 	player.init();
 
-	manageEnemies = new ManageEnemies(app, screenDisplay.width, screenDisplay.height, 20, 4);
+	manageEnemies = new ManageEnemies(app, screenDisplay.width, screenDisplay.height, 20);
 	enemiesList = manageEnemies.enemies;
 	
 	// Adds Sprites & Graphics to app stage
@@ -382,5 +384,25 @@ function main() {
 	//	manageEnemies.recordInfected(player.infectedEnemies);
 	}
 	app.ticker.add(gameLoop);
+
 }
+
+function postHighScore(currentScore) {
+	let xhr = new XMLHttpRequest();
+	xhr.open("POST", '/highScore', true);
+	xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+	currentScore = currentScore.toString();
+	xhr.send(JSON.stringify({"currentScore": currentScore}));
+}
+
+function getHighScore() {
+	let xhr = new XMLHttpRequest();
+	xhr.open("GET", '/highScore', true);
+	xhr.send();
+	console.log(`GET /highScore => ${xhr.responseText} | status: ${xhr.status}`);
+	return xhr.responseText;
+}
+
 main();
+
+
